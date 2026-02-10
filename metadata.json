@@ -1,0 +1,5 @@
+{
+  "name": "SalesAuditor AI",
+  "description": "An elite AI-powered sales call auditor that analyzes audio recordings to provide scoring, deal health diagnosis, and actionable coaching insights using Gemini 1.5 Pro.",
+  "requestFramePermissions": []
+}

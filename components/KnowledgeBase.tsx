@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Persona, ObjectionTemplate } from '../types';
 
@@ -56,13 +57,13 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex space-x-4 border-b border-slate-200">
+      <div className="flex space-x-4 border-b border-slate-200 dark:border-slate-700">
         <button
           onClick={() => { setActiveTab('personas'); setIsAdding(false); }}
           className={`pb-3 px-4 text-sm font-medium transition-colors ${
             activeTab === 'personas'
-              ? 'border-b-2 border-indigo-600 text-indigo-600'
-              : 'text-slate-500 hover:text-slate-700'
+              ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
           }`}
         >
           Prospect Personas
@@ -71,8 +72,8 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
           onClick={() => { setActiveTab('objections'); setIsAdding(false); }}
           className={`pb-3 px-4 text-sm font-medium transition-colors ${
             activeTab === 'objections'
-              ? 'border-b-2 border-indigo-600 text-indigo-600'
-              : 'text-slate-500 hover:text-slate-700'
+              ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
           }`}
         >
           Objection Library
@@ -82,10 +83,10 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
       {/* Header Actions */}
       <div className="flex justify-between items-center">
         <div>
-           <h2 className="text-xl font-bold text-slate-900">
+           <h2 className="text-xl font-bold text-slate-900 dark:text-white">
              {activeTab === 'personas' ? 'Defined Personas' : 'Objection Handling Playbook'}
            </h2>
-           <p className="text-sm text-slate-500 mt-1">
+           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
              {activeTab === 'personas'
                ? 'The AI will try to match the prospect in the call to one of these profiles.'
                : 'The AI will reference these scripts when it hears matching objections.'}
@@ -93,7 +94,7 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
         </div>
         <button
           onClick={() => setIsAdding(!isAdding)}
-          className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700"
+          className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-all active:scale-95"
         >
           {isAdding ? 'Cancel' : activeTab === 'personas' ? '+ Add Persona' : '+ Add Objection'}
         </button>
@@ -101,45 +102,45 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
 
       {/* Add Form */}
       {isAdding && (
-        <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 animate-fade-in">
+        <div className="bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 animate-fade-in transition-colors duration-500">
           {activeTab === 'personas' ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Persona Name</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Persona Name</label>
                   <input
                     type="text"
-                    className="w-full p-2 border border-slate-300 rounded-md"
+                    className="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-shadow"
                     placeholder="e.g. Enterprise Eddie"
                     value={newPersona.name}
                     onChange={(e) => setNewPersona({ ...newPersona, name: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Role/Title</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Role/Title</label>
                   <input
                     type="text"
-                    className="w-full p-2 border border-slate-300 rounded-md"
+                    className="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-shadow"
                     placeholder="e.g. CTO / VP Engineering"
                     value={newPersona.role}
                     onChange={(e) => setNewPersona({ ...newPersona, role: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Industry</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Industry</label>
                   <input
                     type="text"
-                    className="w-full p-2 border border-slate-300 rounded-md"
+                    className="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-shadow"
                     placeholder="e.g. Fintech"
                     value={newPersona.industry}
                     onChange={(e) => setNewPersona({ ...newPersona, industry: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Company Size</label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Company Size</label>
                   <input
                     type="text"
-                    className="w-full p-2 border border-slate-300 rounded-md"
+                    className="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-shadow"
                     placeholder="e.g. 1000+ employees"
                     value={newPersona.companySize}
                     onChange={(e) => setNewPersona({ ...newPersona, companySize: e.target.value })}
@@ -147,25 +148,25 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Key Pain Points</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Key Pain Points</label>
                 {newPersona.painPoints.map((pt, idx) => (
                   <input
                     key={idx}
                     type="text"
-                    className="w-full p-2 border border-slate-300 rounded-md mb-2"
+                    className="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md text-slate-900 dark:text-white mb-2 focus:ring-2 focus:ring-indigo-500 outline-none transition-shadow"
                     placeholder="e.g. Slow deployment cycles"
                     value={pt}
                     onChange={(e) => handlePainPointChange(idx, e.target.value)}
                   />
                 ))}
-                <button onClick={addPainPointField} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+                <button onClick={addPainPointField} className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 font-medium">
                   + Add another pain point
                 </button>
               </div>
               <div className="pt-2">
                 <button
                   onClick={handleAddPersona}
-                  className="w-full py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700"
+                  className="w-full py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition-all active:scale-95"
                 >
                   Save Persona
                 </button>
@@ -174,9 +175,9 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
           ) : (
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Category</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
                 <select
-                  className="w-full p-2 border border-slate-300 rounded-md"
+                  className="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-shadow"
                   value={newObjection.category}
                   onChange={(e) => setNewObjection({ ...newObjection, category: e.target.value })}
                 >
@@ -189,19 +190,19 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Trigger Phrase (What the prospect says)</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Trigger Phrase (What the prospect says)</label>
                 <input
                   type="text"
-                  className="w-full p-2 border border-slate-300 rounded-md"
+                  className="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-shadow"
                   placeholder="e.g. 'We don't have budget for this right now'"
                   value={newObjection.trigger}
                   onChange={(e) => setNewObjection({ ...newObjection, trigger: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Ideal Response Script</label>
+                <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Ideal Response Script</label>
                 <textarea
-                  className="w-full p-2 border border-slate-300 rounded-md h-24"
+                  className="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md h-24 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-shadow"
                   placeholder="e.g. I understand. Budget is often a concern. However, most clients find that..."
                   value={newObjection.response}
                   onChange={(e) => setNewObjection({ ...newObjection, response: e.target.value })}
@@ -210,7 +211,7 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
               <div className="pt-2">
                 <button
                   onClick={handleAddObjection}
-                  className="w-full py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700"
+                  className="w-full py-2 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition-all active:scale-95"
                 >
                   Save Objection Template
                 </button>
@@ -224,24 +225,24 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {activeTab === 'personas' ? (
           personas.length === 0 ? (
-            <div className="col-span-2 text-center py-10 text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">
+            <div className="col-span-2 text-center py-10 text-slate-400 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 transition-colors duration-500">
               No personas defined yet. Add one to help the AI identify your prospects.
             </div>
           ) : (
             personas.map((persona) => (
-              <div key={persona.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+              <div key={persona.id} className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300">
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-slate-900">{persona.name}</h3>
-                  <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full font-medium">
+                  <h3 className="font-bold text-slate-900 dark:text-white">{persona.name}</h3>
+                  <span className="text-xs bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded-full font-medium">
                     {persona.role}
                   </span>
                 </div>
-                <div className="text-sm text-slate-500 mb-3">
+                <div className="text-sm text-slate-500 dark:text-slate-400 mb-3">
                   {persona.industry} • {persona.companySize}
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-400 uppercase mb-1">Pain Points</h4>
-                  <ul className="text-sm text-slate-600 list-disc list-inside">
+                  <h4 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mb-1">Pain Points</h4>
+                  <ul className="text-sm text-slate-600 dark:text-slate-300 list-disc list-inside">
                     {persona.painPoints.map((pt, i) => (
                       <li key={i} className="truncate">{pt}</li>
                     ))}
@@ -249,7 +250,7 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
                 </div>
                 <button 
                     onClick={() => setPersonas(personas.filter(p => p.id !== persona.id))}
-                    className="mt-4 text-xs text-red-500 hover:text-red-700"
+                    className="mt-4 text-xs text-red-500 hover:text-red-700 active:scale-95 transition-transform"
                 >
                     Delete
                 </button>
@@ -258,25 +259,25 @@ const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
           )
         ) : (
           objections.length === 0 ? (
-            <div className="col-span-2 text-center py-10 text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">
+            <div className="col-span-2 text-center py-10 text-slate-400 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 transition-colors duration-500">
               No objection templates defined yet. Add common objections to guide the AI's analysis.
             </div>
           ) : (
             objections.map((obj) => (
-              <div key={obj.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+              <div key={obj.id} className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300">
                 <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-bold uppercase bg-slate-100 text-slate-600 px-2 py-1 rounded">
+                  <span className="text-xs font-bold uppercase bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">
                     {obj.category}
                   </span>
                 </div>
-                <p className="font-medium text-slate-900 mb-2">"{obj.trigger}"</p>
-                <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
-                  <p className="text-xs font-bold text-emerald-700 uppercase mb-1">Ideal Response</p>
-                  <p className="text-sm text-emerald-900 italic">"{obj.response}"</p>
+                <p className="font-medium text-slate-900 dark:text-white mb-2">"{obj.trigger}"</p>
+                <div className="bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-lg border border-emerald-100 dark:border-emerald-900/50">
+                  <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase mb-1">Ideal Response</p>
+                  <p className="text-sm text-emerald-900 dark:text-emerald-200 italic">"{obj.response}"</p>
                 </div>
                  <button 
                     onClick={() => setObjections(objections.filter(o => o.id !== obj.id))}
-                    className="mt-4 text-xs text-red-500 hover:text-red-700"
+                    className="mt-4 text-xs text-red-500 hover:text-red-700 active:scale-95 transition-transform"
                 >
                     Delete
                 </button>

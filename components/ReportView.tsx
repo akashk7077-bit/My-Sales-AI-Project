@@ -1,279 +1,329 @@
-import React from 'react';
-import { AnalysisData } from '../types';
-import ScoreCard from './ScoreCard';
+
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { AnalysisData, CallRecord, UserRole } from '../types';
+import RepDashboard from './RepDashboard';
+import ManagerDashboard from './ManagerDashboard';
+import ExecutiveDashboard from './ExecutiveDashboard';
+import EmailSummaryModal from './EmailSummaryModal';
 
 interface ReportViewProps {
   data: AnalysisData;
+  onViewRecommendations?: () => void;
+  audioUrl?: string;
+  videoUrl?: string;
+  onUpdateRecord?: (updates: Partial<CallRecord>) => void;
+  userRole?: UserRole;
+  userEmail?: string;
 }
 
-const ReportView: React.FC<ReportViewProps> = ({ data }) => {
-  // Helper for Deal Health Badge
-  const getHealthBadge = (status: string) => {
-    switch (status) {
-      case 'HOT': return 'bg-rose-100 text-rose-700 border-rose-200';
-      case 'WARM': return 'bg-amber-100 text-amber-700 border-amber-200';
-      case 'COLD': return 'bg-sky-100 text-sky-700 border-sky-200';
-      case 'UNQUALIFIED': return 'bg-slate-100 text-slate-700 border-slate-200';
-      default: return 'bg-gray-100 text-gray-700';
+const ReportView: React.FC<ReportViewProps> = ({ data, audioUrl, videoUrl, onUpdateRecord, userRole = 'EXECUTIVE', userEmail }) => {
+  const [activeTab, setActiveTab] = useState<'REP' | 'MANAGER' | 'EXECUTIVE'>('REP');
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  
+  // Audio Player State
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const transcriptContainerRef = useRef<HTMLDivElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  // View Colors and Styles
+  const getTabStyle = (tab: string) => {
+    const isActive = activeTab === tab;
+    if (tab === 'REP') {
+       return isActive 
+        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 border-transparent' 
+        : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 border-transparent hover:bg-indigo-50 dark:hover:bg-slate-700';
+    }
+    if (tab === 'MANAGER') {
+       return isActive 
+        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 border-transparent' 
+        : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 border-transparent hover:bg-emerald-50 dark:hover:bg-slate-700';
+    }
+    if (tab === 'EXECUTIVE') {
+       return isActive 
+        ? 'bg-slate-800 text-white shadow-lg shadow-slate-500/30 border-transparent' 
+        : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border-transparent hover:bg-slate-100 dark:hover:bg-slate-700';
+    }
+    return '';
+  };
+
+  // Determine Available Tabs based on Role
+  const canSeeManager = userRole === 'MANAGER' || userRole === 'EXECUTIVE';
+  const canSeeExecutive = userRole === 'EXECUTIVE';
+
+  // Redirect if current tab is not allowed
+  useEffect(() => {
+      if (activeTab === 'MANAGER' && !canSeeManager) setActiveTab('REP');
+      if (activeTab === 'EXECUTIVE' && !canSeeExecutive) setActiveTab('REP');
+  }, [userRole, activeTab, canSeeManager, canSeeExecutive]);
+
+  // Audio Handlers
+  const togglePlay = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
     }
   };
 
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = parseFloat(e.target.value);
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+      setCurrentTime(time);
+    }
+  };
+
+  const parseTimestamp = (ts: string) => {
+    if (!ts) return 0;
+    // Format [MM:SS] or MM:SS
+    const cleanTs = ts.replace('[', '').replace(']', '');
+    const parts = cleanTs.split(':');
+    if (parts.length === 2) {
+      return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    }
+    if (parts.length === 3) {
+      return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+    }
+    return 0;
+  };
+
+  const handleTranscriptClick = (timestamp: string) => {
+    const seconds = parseTimestamp(timestamp);
+    if (audioRef.current && seconds >= 0) {
+      audioRef.current.currentTime = seconds;
+      setCurrentTime(seconds);
+      if (!isPlaying) {
+        audioRef.current.play();
+        setIsPlaying(true);
+      }
+    }
+  };
+
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
+  // Calculate active segment based on current time
+  const activeSegmentIndex = useMemo(() => {
+    return data.transcription.findIndex((t, i) => {
+      const currentStart = parseTimestamp(t.timestamp);
+      const nextStart = data.transcription[i + 1] ? parseTimestamp(data.transcription[i + 1].timestamp) : Infinity;
+      return currentTime >= currentStart && currentTime < nextStart;
+    });
+  }, [currentTime, data.transcription]);
+
+  // Auto-scroll to active segment
+  useEffect(() => {
+    if (activeSegmentIndex !== -1 && transcriptContainerRef.current) {
+      const activeEl = transcriptContainerRef.current.children[activeSegmentIndex] as HTMLElement;
+      if (activeEl) {
+        // Only scroll if we are not manually hovering (optional refinement, but for now strict sync)
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [activeSegmentIndex]);
+
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6 pb-20 animate-fade-in">
-
-      {/* Header Summary */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">Analysis Complete</h2>
-          <div className="flex flex-wrap items-center gap-2 mt-1">
-             <span className="text-slate-500 text-sm">{data.context.purpose}</span>
-             <span className="text-slate-300">•</span>
-             <span className="text-slate-500 text-sm">{data.context.prospectRole || 'Unknown Role'}</span>
-             
-             {data.context.matchedPersona && data.context.matchedPersona !== 'Unknown' && (
-                <>
-                  <span className="text-slate-300">•</span>
-                  <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                    Persona: {data.context.matchedPersona}
-                  </span>
-                </>
-             )}
-          </div>
-        </div>
-        <div className={`px-4 py-2 rounded-lg border-2 font-bold text-lg ${getHealthBadge(data.dealHealth.status)}`}>
-          {data.dealHealth.status} DEAL
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* LEFT COLUMN: Main Analysis */}
-        <div className="lg:col-span-2 space-y-6">
-
-          {/* Coaching Insights (Priority) */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="bg-indigo-900 px-6 py-4">
-              <h3 className="text-white font-semibold flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Coaching Insights
-              </h3>
-            </div>
-            <div className="p-6 space-y-6">
-               <div>
-                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-3">Replicable Behaviors (Keep)</h4>
-                  <ul className="space-y-2">
-                    {data.coaching.right.map((item, i) => (
-                      <li key={i} className="flex items-start gap-3 text-slate-700 text-sm">
-                         <span className="text-emerald-500 mt-0.5">✓</span> {item}
-                      </li>
-                    ))}
-                  </ul>
-               </div>
-
-               <div>
-                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-3">Areas for Improvement (Fix)</h4>
-                  <ul className="space-y-2">
-                    {data.coaching.wrong.map((item, i) => (
-                      <li key={i} className="flex items-start gap-3 text-slate-700 text-sm">
-                         <span className="text-rose-500 mt-0.5">✗</span> {item}
-                      </li>
-                    ))}
-                  </ul>
-               </div>
-
-               <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                  <h4 className="text-xs font-bold text-slate-500 uppercase mb-2">Recommended Rephrase</h4>
-                  <p className="text-slate-800 italic font-medium">"{data.coaching.rewrite}"</p>
-               </div>
-
-               <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-                  <h4 className="text-xs font-bold text-indigo-600 uppercase mb-2">The Missed Question</h4>
-                  <p className="text-indigo-900 font-medium">"{data.coaching.missedQuestion}"</p>
-               </div>
-            </div>
-          </div>
-
-          {/* Framework Analysis */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-             <h3 className="text-lg font-bold text-slate-900 mb-4">Framework Breakdown</h3>
-
-             <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                   <h4 className="font-semibold text-slate-800 mb-3 border-b pb-2">Discovery</h4>
-                   <ul className="space-y-2 text-sm text-slate-600">
-                      <li className="flex justify-between">
-                        <span>Pain Identified:</span>
-                        <span className={data.framework.discovery.painPointsIdentified ? "text-emerald-600 font-medium" : "text-red-500 font-medium"}>
-                          {data.framework.discovery.painPointsIdentified ? "Yes" : "No"}
-                        </span>
-                      </li>
-                      <li className="flex justify-between">
-                        <span>Open-Ended Qs:</span>
-                        <span className={data.framework.discovery.openEndedQuestions ? "text-emerald-600 font-medium" : "text-red-500 font-medium"}>
-                          {data.framework.discovery.openEndedQuestions ? "Yes" : "No"}
-                        </span>
-                      </li>
-                      <li className="flex justify-between">
-                        <span>Business Impact:</span>
-                         <span className={data.framework.discovery.businessImpactDiscussed ? "text-emerald-600 font-medium" : "text-red-500 font-medium"}>
-                          {data.framework.discovery.businessImpactDiscussed ? "Yes" : "No"}
-                        </span>
-                      </li>
-                   </ul>
-                   <p className="mt-2 text-xs text-slate-500">{data.framework.discovery.summary}</p>
-                </div>
-
-                <div>
-                   <h4 className="font-semibold text-slate-800 mb-3 border-b pb-2">Control & Flow</h4>
-                   <ul className="space-y-2 text-sm text-slate-600">
-                      <li className="flex justify-between">
-                        <span>Talk Ratio (Rep/Pro):</span>
-                        <span className="font-mono bg-slate-100 px-2 py-0.5 rounded">{data.framework.control.talkTimeRatio}</span>
-                      </li>
-                      <li className="flex justify-between">
-                        <span>Dynamic:</span>
-                        <span className="font-medium">{data.framework.control.leadOrReact}</span>
-                      </li>
-                   </ul>
-                </div>
-             </div>
-
-             {/* Objections */}
-             <div className="mt-6">
-               <h4 className="font-semibold text-slate-800 mb-3 border-b pb-2">Objection Handling</h4>
-               {data.framework.objections.length === 0 ? (
-                 <p className="text-sm text-slate-400 italic">No major objections detected.</p>
-               ) : (
-                 <div className="space-y-3">
-                   {data.framework.objections.map((obj, idx) => (
-                     <div key={idx} className="bg-slate-50 p-4 rounded-lg border border-slate-100 relative">
-                       <div className="flex justify-between items-start mb-2">
-                          <span className="text-xs font-bold uppercase bg-slate-200 text-slate-600 px-2 py-1 rounded">{obj.type}</span>
-                          <span className={`text-xs font-bold px-2 py-1 rounded ${obj.responseQuality === 'Strong' ? 'bg-emerald-100 text-emerald-700' : obj.responseQuality === 'Average' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
-                            {obj.responseQuality} Response
-                          </span>
-                       </div>
-                       
-                       <div className="mb-2">
-                         <span className="text-xs text-slate-400 uppercase font-bold">Prospect Said:</span>
-                         <p className="text-sm text-slate-800 italic">"{obj.quote}"</p>
-                       </div>
-
-                       {obj.suggestedLibraryResponse ? (
-                         <div className="mt-3 bg-indigo-50 border border-indigo-100 p-3 rounded-lg">
-                            <div className="flex items-center gap-1 mb-1">
-                                <svg className="w-3 h-3 text-indigo-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z" clipRule="evenodd" /></svg>
-                                <span className="text-xs font-bold text-indigo-700 uppercase">Library Match</span>
-                            </div>
-                            <p className="text-sm text-indigo-900 font-medium">"{obj.suggestedLibraryResponse}"</p>
-                         </div>
-                       ) : (
-                        <div className="mt-2">
-                           <span className="text-xs text-slate-400 uppercase font-bold">Missed Opportunity:</span>
-                           <p className="text-xs text-slate-600">{obj.missedOpportunity}</p>
-                        </div>
-                       )}
-                     </div>
-                   ))}
+    <div className="w-full max-w-6xl mx-auto space-y-8 pb-20 relative">
+      
+      {/* 1. MEDIA PLAYER SECTION */}
+      {audioUrl && (
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 animate-fade-in-up sticky top-20 z-30 backdrop-blur-md bg-white/90 dark:bg-slate-800/90">
+           <audio 
+             ref={audioRef} 
+             src={audioUrl} 
+             onTimeUpdate={handleTimeUpdate} 
+             onLoadedMetadata={handleLoadedMetadata}
+             onEnded={() => setIsPlaying(false)}
+             className="hidden"
+           />
+           <div className="flex items-center gap-4">
+              <button 
+                onClick={togglePlay}
+                className="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center transition-all active:scale-95 shadow-lg shadow-indigo-500/30"
+              >
+                 {isPlaying ? (
+                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                 ) : (
+                   <svg className="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                 )}
+              </button>
+              
+              <div className="flex-1">
+                 <div className="flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
+                    <span>{formatTime(currentTime)}</span>
+                    <span>{formatTime(duration)}</span>
                  </div>
-               )}
-             </div>
-          </div>
-
-          {/* Transcript Accordion (Simplified) */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-             <details className="group">
-                <summary className="flex justify-between items-center font-medium cursor-pointer list-none p-6 text-slate-800 hover:bg-slate-50">
-                   <span>Full Transcription</span>
-                   <span className="transition group-open:rotate-180">
-                      <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
-                   </span>
-                </summary>
-                <div className="text-slate-600 border-t border-slate-100 max-h-96 overflow-y-auto custom-scrollbar bg-slate-50 p-6 space-y-4">
-                  {data.transcription.map((seg, idx) => (
-                    <div key={idx} className={`flex gap-4 ${seg.speaker === 'SALES_REP' ? 'flex-row-reverse' : ''}`}>
-                      <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${seg.speaker === 'SALES_REP' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                        {seg.speaker === 'SALES_REP' ? 'REP' : 'PRO'}
-                      </div>
-                      <div className={`flex-1 p-3 rounded-lg text-sm ${seg.speaker === 'SALES_REP' ? 'bg-white border border-indigo-100 text-right' : 'bg-white border border-emerald-100'}`}>
-                        {seg.text}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-             </details>
-          </div>
-
-        </div>
-
-        {/* RIGHT COLUMN: Scores & Summary */}
-        <div className="space-y-6">
-
-           {/* Overall Score */}
-           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 text-center">
-              <h3 className="text-slate-500 font-semibold uppercase tracking-wider text-sm mb-4">Overall Effectiveness</h3>
-              <div className="relative w-32 h-32 mx-auto flex items-center justify-center">
-                 <svg className="w-full h-full transform -rotate-90">
-                    <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-100" />
-                    <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent"
-                       strokeDasharray={351.86}
-                       strokeDashoffset={351.86 - (351.86 * data.scores.overall) / 10}
-                       className={data.scores.overall >= 8 ? 'text-emerald-500' : data.scores.overall >= 5 ? 'text-amber-500' : 'text-red-500'}
-                    />
-                 </svg>
-                 <span className="absolute text-4xl font-bold text-slate-800">{data.scores.overall}</span>
+                 <input 
+                   type="range" 
+                   min="0" 
+                   max={duration || 0} 
+                   value={currentTime} 
+                   onChange={handleSeek}
+                   className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-500"
+                 />
               </div>
-              <p className="mt-4 text-sm text-slate-500 leading-relaxed text-left">
-                {data.scores.justification}
-              </p>
            </div>
+        </div>
+      )}
 
-           {/* Score Breakdown */}
-           <div className="grid grid-cols-2 gap-3">
-              <ScoreCard label="Discovery" score={data.scores.discovery} />
-              <ScoreCard label="Objections" score={data.scores.objectionHandling} />
-              <ScoreCard label="Value" score={data.scores.valueArticulation} />
-              <ScoreCard label="Closing" score={data.scores.closingReadiness} />
+      {/* 2. TRANSCRIPT VIEWER (Collapsible) */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden animate-fade-in-up delay-100">
+         <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
+             <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Conversation Transcript</h3>
+             <span className="text-[10px] bg-slate-200 dark:bg-slate-700 px-2 py-1 rounded text-slate-600 dark:text-slate-300 font-mono">
+                {data.transcription.length} turns
+             </span>
+         </div>
+         <div 
+           ref={transcriptContainerRef}
+           className="max-h-80 overflow-y-auto p-4 space-y-3 bg-slate-50/30 dark:bg-slate-900/10 custom-scrollbar"
+         >
+            {data.transcription.map((t, idx) => {
+                const isActive = idx === activeSegmentIndex;
+                return (
+                    <div 
+                      key={idx} 
+                      className={`flex gap-3 text-sm group transition-all duration-300 ${t.speaker === 'SALES_REP' ? 'flex-row-reverse' : ''} ${isActive ? 'scale-[1.01]' : 'opacity-80 hover:opacity-100'}`}
+                    >
+                        <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold shadow-sm transition-colors ${
+                             isActive 
+                             ? 'bg-indigo-600 text-white ring-2 ring-indigo-200 dark:ring-indigo-900' 
+                             : (t.speaker === 'SALES_REP' ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300' : 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300')
+                        }`}>
+                            {t.speaker === 'SALES_REP' ? 'REP' : 'PRO'}
+                        </div>
+                        <div className={`max-w-[85%] rounded-2xl p-3 relative transition-colors duration-300 ${
+                            isActive 
+                            ? 'bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-700 shadow-md ring-1 ring-indigo-100 dark:ring-indigo-800' 
+                            : (t.speaker === 'SALES_REP' ? 'bg-indigo-50/50 dark:bg-indigo-900/10 text-slate-800 dark:text-slate-200 rounded-tr-none' : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 shadow-sm border border-slate-100 dark:border-slate-600 rounded-tl-none')
+                        }`}>
+                            <div className={`flex items-center gap-2 mb-1 ${t.speaker === 'SALES_REP' ? 'flex-row-reverse' : ''}`}>
+                                 <button 
+                                   onClick={() => handleTranscriptClick(t.timestamp)}
+                                   className={`text-[10px] font-mono px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
+                                      isActive 
+                                      ? 'bg-indigo-200 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200' 
+                                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-indigo-500'
+                                   }`}
+                                 >
+                                    {t.timestamp}
+                                 </button>
+                            </div>
+                            <p className={`leading-relaxed ${isActive ? 'text-slate-900 dark:text-white font-medium' : ''}`}>
+                               {t.text}
+                            </p>
+                        </div>
+                    </div>
+                );
+            })}
+         </div>
+      </div>
+
+      {/* 3. CONTEXT & VIEW TABS */}
+      <div className="flex flex-col md:flex-row gap-6 animate-fade-in-up delay-200">
+        {/* Context Card */}
+        <div className="md:w-1/3 bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 h-fit">
+           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Deal Context</h3>
+           <div className="space-y-4">
+              <div>
+                 <span className="text-xs text-slate-500">Product/Service</span>
+                 <p className="font-bold text-slate-900 dark:text-white">{data.context.product || 'Not detected'}</p>
+              </div>
+              <div className="flex justify-between">
+                 <div>
+                    <span className="text-xs text-slate-500">Price Point</span>
+                    <p className="font-bold text-slate-900 dark:text-white">{data.context.price || 'Unknown'}</p>
+                 </div>
+                 <div className="text-right">
+                    <span className="text-xs text-slate-500">Prospect Role</span>
+                    <p className="font-bold text-slate-900 dark:text-white">{data.context.prospectRole || 'Unknown'}</p>
+                 </div>
+              </div>
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
+                 <span className="text-xs text-slate-500">Detected Persona</span>
+                 <div className="flex items-center gap-2 mt-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">
+                       {data.context.matchedPersona || 'General Lead'}
+                    </p>
+                 </div>
+              </div>
            </div>
-
-           {/* Executive Summary */}
-           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <h3 className="font-bold text-slate-900 mb-4">Manager Summary</h3>
-              <ul className="space-y-3">
-                {data.managerSummary.map((point, i) => (
-                  <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
-                    <span className="text-indigo-400 mt-1.5">•</span>
-                    {point}
-                  </li>
-                ))}
-              </ul>
-           </div>
-
-           {/* Context Metadata */}
-           <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
-             <h4 className="text-xs font-bold text-slate-400 uppercase mb-3">Detected Context</h4>
-             <dl className="space-y-2 text-sm">
-               <div>
-                 <dt className="text-slate-500">Product</dt>
-                 <dd className="font-medium text-slate-800">{data.context.product || 'N/A'}</dd>
-               </div>
-               <div>
-                 <dt className="text-slate-500">Price Mentioned</dt>
-                 <dd className="font-medium text-slate-800">{data.context.price || 'None'}</dd>
-               </div>
-               <div>
-                 <dt className="text-slate-500">Authority</dt>
-                 <dd className="font-medium text-slate-800 truncate" title={data.context.authoritySignals}>{data.context.authoritySignals || 'Unclear'}</dd>
-               </div>
-             </dl>
-           </div>
-
         </div>
 
+        {/* Dynamic Views */}
+        <div className="md:w-2/3 flex flex-col">
+           {/* Tab Bar & Action Buttons */}
+           <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+              <div className="flex p-1 bg-slate-100 dark:bg-slate-700 rounded-xl self-start">
+                  <button 
+                     onClick={() => setActiveTab('REP')}
+                     className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 ${getTabStyle('REP')}`}
+                  >
+                     Rep View
+                  </button>
+                  {(userRole === 'MANAGER' || userRole === 'EXECUTIVE') && (
+                      <button 
+                         onClick={() => setActiveTab('MANAGER')}
+                         className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 ${getTabStyle('MANAGER')}`}
+                      >
+                         Manager View
+                      </button>
+                  )}
+                  {userRole === 'EXECUTIVE' && (
+                      <button 
+                         onClick={() => setActiveTab('EXECUTIVE')}
+                         className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-300 ${getTabStyle('EXECUTIVE')}`}
+                      >
+                         Executive View
+                      </button>
+                  )}
+              </div>
+
+              <button 
+                onClick={() => setIsEmailModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 transition-all shadow-sm active:scale-95"
+              >
+                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                 Email Summary
+              </button>
+           </div>
+
+           {/* Content Area */}
+           <div className="min-h-[500px]">
+              {activeTab === 'REP' && <RepDashboard data={data.repView} />}
+              {activeTab === 'MANAGER' && <ManagerDashboard managerData={data.managerView} repData={data.repView} />}
+              {activeTab === 'EXECUTIVE' && <ExecutiveDashboard execData={data.executiveView} managerData={data.managerView} />}
+           </div>
+        </div>
       </div>
+      
+      <EmailSummaryModal 
+        isOpen={isEmailModalOpen} 
+        onClose={() => setIsEmailModalOpen(false)} 
+        data={data}
+        userEmail={userEmail}
+      />
     </div>
   );
 };

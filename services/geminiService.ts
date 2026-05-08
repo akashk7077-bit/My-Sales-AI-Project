@@ -144,7 +144,7 @@ Identify unique objections raised by the prospect. Return an array of objects (c
 `;
 
 const transcribeChunk = async (chunk: Blob, chunkIndex: number, totalChunks: number, fileName: string): Promise<string> => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY1 || process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY missing for audio transcription");
   
   const ai = new GoogleGenAI({ apiKey });
@@ -247,7 +247,7 @@ export const analyzeCall = async (
   objectionTemplates: ObjectionTemplate[],
   onProgress?: (status: string, progress: number) => void
 ): Promise<AnalysisData> => {
-  const apiKey = process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY1 || process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error("API Key is missing in environment variables.");
   }
@@ -570,7 +570,7 @@ export const analyzeCall = async (
 };
 
 export const generateCombinedReview = async (analyses: AnalysisData[]): Promise<AnalysisData> => {
-  const apiKey = process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY1 || process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("API Key missing");
 
   const ai = new GoogleGenAI({ apiKey });
@@ -676,7 +676,7 @@ export const askSalesCoach = async (
   analysisData: AnalysisData,
   personas: Persona[]
 ): Promise<string> => {
-  const apiKey = process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY1 || process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("API Key missing");
 
   const ai = new GoogleGenAI({ apiKey });

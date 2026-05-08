@@ -177,24 +177,99 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerData, repDat
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
          
          {/* Coaching & Training Plan */}
-         <div className="card-hover bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 relative group animate-fade-in-up delay-300">
-            <h3 className="text-sm font-bold text-slate-500 uppercase mb-4">Coaching & Training Plan</h3>
-            <div className="space-y-4">
-                <div>
-                  <h4 className="text-xs font-bold text-slate-400 uppercase">Training Plan</h4>
-                  <ul className="list-disc list-inside text-sm text-slate-700 dark:text-slate-300">
-                    {coachingPlan.trainingPlan?.map((item, idx) => (
-                      <li key={idx}>{item}</li>
-                    ))}
-                  </ul>
+         <div className="card-hover bg-gradient-to-br from-indigo-50 to-white dark:from-slate-800 dark:to-slate-900 rounded-2xl shadow-sm border border-indigo-100 dark:border-indigo-900/30 p-6 xl:p-8 animate-fade-in-up delay-300 overflow-hidden relative">
+            {/* Background flourish */}
+            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-indigo-500/5 blur-3xl rounded-full pointer-events-none"></div>
+            
+            <div className="flex items-start justify-between mb-8 relative z-10">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                   <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
+                   Personalized Coaching Plan
+                </h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Actionable steps to elevate this rep's performance.</p>
+              </div>
+              {coachingPlan.kpi && (
+                <div className="flex flex-col items-end">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Target KPI</span>
+                  <span className="inline-flex items-center px-3 py-1 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-semibold shadow-sm border border-indigo-200 dark:border-indigo-800/50">
+                    {coachingPlan.kpi}
+                  </span>
                 </div>
-                <div>
-                   <h4 className="text-xs font-bold text-slate-400 uppercase">Recommended Sentences</h4>
-                   <ul className="list-disc list-inside text-sm text-slate-700 dark:text-slate-300">
-                     {repData.bestRecommendedSentences?.map((sentence, idx) => (
-                       <li key={idx}>{sentence}</li>
-                     ))}
-                   </ul>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+                {/* Left Column: Roleplay & Drills */}
+                <div className="space-y-8">
+                  {coachingPlan.roleplay && (
+                    <div className="bg-white dark:bg-slate-800/80 rounded-xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group">
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-purple-500"></div>
+                      <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" /></svg>
+                        Mock Arena Scenario
+                      </h4>
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-relaxed italic">
+                        "{coachingPlan.roleplay}"
+                      </p>
+                    </div>
+                  )}
+
+                  {coachingPlan.drills && coachingPlan.drills.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                        <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Target Execution Drills
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {coachingPlan.drills.map((drill, idx) => (
+                           <span key={idx} className="inline-flex items-center px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded-lg text-xs font-semibold border border-emerald-200 dark:border-emerald-800/30 shadow-sm transition-transform hover:-translate-y-0.5">
+                             {drill}
+                           </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column: Training Plan & Sentences */}
+                <div className="space-y-8">
+                  {coachingPlan.trainingPlan && coachingPlan.trainingPlan.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">1-on-1 Action Plan</h4>
+                      <div className="space-y-4 relative before:absolute before:inset-0 before:ml-2.5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 dark:before:via-slate-700 before:to-transparent">
+                        {coachingPlan.trainingPlan.map((item, idx) => (
+                          <div key={idx} className="relative flex items-center gap-4">
+                            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-white dark:bg-slate-800 border-2 border-indigo-200 dark:border-indigo-700 text-xs font-bold text-indigo-600 dark:text-indigo-400 z-10 shadow-sm">
+                               {idx + 1}
+                            </div>
+                            <div className="flex-1 bg-white dark:bg-slate-800/80 p-3 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                               <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{item}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {repData.bestRecommendedSentences && repData.bestRecommendedSentences.length > 0 && (
+                    <div className="bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-xl p-0.5 shadow-sm">
+                       <div className="bg-white dark:bg-slate-900 rounded-[10px] p-4 h-full">
+                         <h4 className="text-xs font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            "Magic" Phrases to Feed Rep
+                         </h4>
+                         <ul className="space-y-2">
+                           {repData.bestRecommendedSentences.map((sentence, idx) => (
+                             <li key={idx} className="text-sm text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                               <span className="text-violet-400 text-lg leading-none mt-0.5">❝</span>
+                               <span className="font-medium">{sentence}</span>
+                             </li>
+                           ))}
+                         </ul>
+                       </div>
+                    </div>
+                  )}
                 </div>
             </div>
          </div>

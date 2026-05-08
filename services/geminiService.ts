@@ -145,12 +145,12 @@ Identify unique objections raised by the prospect. Return an array of objects (c
 
 const transcribeChunk = async (chunk: Blob, chunkIndex: number, totalChunks: number, fileName: string): Promise<string> => {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("API Key missing for audio transcription");
+  if (!apiKey) throw new Error("GEMINI_API_KEY missing for audio transcription");
   
   const ai = new GoogleGenAI({ apiKey });
   const base64Data = await blobToBase64(chunk);
   
-  console.log(`Sending chunk ${chunkIndex + 1}/${totalChunks} (Size: ${chunk.size}, File: ${fileName}) to model gemini-2.5-flash`);
+  console.log(`Sending chunk ${chunkIndex + 1}/${totalChunks} (Size: ${chunk.size}, File: ${fileName})`);
 
   return retryWithBackoff(async () => {
       const response = await ai.models.generateContent({
@@ -454,7 +454,7 @@ export const analyzeCall = async (
     }
   };
 
-  const modelId = "gemma-4-31b-it";
+  const modelId = "gemini-2.5-flash";
 
   try {
     // Intermediate step to show progress is moving for the analysis part
@@ -574,7 +574,7 @@ export const generateCombinedReview = async (analyses: AnalysisData[]): Promise<
   if (!apiKey) throw new Error("API Key missing");
 
   const ai = new GoogleGenAI({ apiKey });
-  const modelId = process.env.GEMMA_MODEL || "gemma-4-31b-it";
+  const modelId = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
   const payload = analyses.map((a, i) => ({
     callIndex: i + 1,
@@ -680,7 +680,7 @@ export const askSalesCoach = async (
   if (!apiKey) throw new Error("API Key missing");
 
   const ai = new GoogleGenAI({ apiKey });
-  const modelId = process.env.GEMMA_MODEL || "gemma-4-31b-it";
+  const modelId = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
   const formattedTranscript = transcript.map(s => `[${s.timestamp}] ${s.speaker}: ${s.text}`).join("\n");
   

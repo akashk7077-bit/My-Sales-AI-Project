@@ -54,7 +54,6 @@ const UserDetailsForm: React.FC<UserDetailsFormProps> = ({ role, onSubmit, onBac
   const roleLabels: Record<UserRole, string> = {
     REP: 'Sales Representative',
     MANAGER: 'Sales Manager',
-    EXECUTIVE: 'Senior Leadership',
   };
 
   return (
@@ -123,7 +122,7 @@ const UserDetailsForm: React.FC<UserDetailsFormProps> = ({ role, onSubmit, onBac
             {errors.email && <p className="text-rose-500 text-xs mt-1 font-medium animate-fade-in">{errors.email}</p>}
           </div>
 
-          {(role === 'MANAGER' || role === 'EXECUTIVE') && (
+          {(role === 'MANAGER') && (
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide mb-1">
                 Team Size (Optional)

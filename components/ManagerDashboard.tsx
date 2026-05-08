@@ -53,8 +53,19 @@ const CustomRiskTooltip = ({ active, payload }: any) => {
 const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerData, repData }) => {
   const [activeRisk, setActiveRisk] = useState<string | null>(null);
 
+  // Defensive defaults to prevent crashes if analysis data is partial
+  const md = managerData || {};
+  const rd = repData || { skillBreakdown: [] };
+  const skillBreakdown = rd.skillBreakdown || [];
+  const riskSignals = md.revenueRiskSignals || [];
+  const competitorAnalysis = md.competitorAnalysis || [];
+  const riskAssessment = md.dealRiskAssessment || { probability: 0, riskLevel: 'N/A', primaryDriver: 'N/A' };
+  const coachingPriority = md.coachingPriority || { focusArea: 'N/A', level: 'N/A' };
+  const patternAnalysis = md.patternAnalysis || { issueType: 'N/A', rootCause: 'N/A' };
+  const coachingPlan = md.coachingPlan || { drills: [], roleplay: '', kpi: '', trainingPlan: [] };
+
   // Enhanced Data Mappings including evidence for tooltips
-  const skillData = repData.skillBreakdown.map(skill => ({
+  const skillData = skillBreakdown.map(skill => ({
     subject: skill.skill,
     score: skill.score,
     evidence: skill.evidence,
@@ -63,7 +74,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerData, repDat
   }));
 
   // Create Revenue Risk Data (Inverted Skills + Explicit Risks)
-  const riskBarData = repData.skillBreakdown.map(skill => ({
+  const riskBarData = skillBreakdown.map(skill => ({
     name: skill.skill,
     risk: 100 - skill.score,
     reasoning: skill.reasoning,
@@ -71,7 +82,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerData, repDat
   })).sort((a, b) => b.risk - a.risk);
 
   // Gauge Data for Risk Level
-  const gaugeValue = managerData.dealRiskAssessment.probability;
+  const gaugeValue = riskAssessment.probability || 0;
   const gaugeColor = gaugeValue < 30 ? '#f43f5e' : gaugeValue < 70 ? '#f59e0b' : '#10b981';
 
   return (
@@ -104,10 +115,10 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerData, repDat
                </div>
            </div>
            <p className="mt-4 text-center font-medium text-slate-600 dark:text-slate-300 relative z-10">
-             {managerData.dealRiskAssessment.riskLevel} Risk
+             {riskAssessment.riskLevel} Risk
            </p>
            <div className="mt-2 text-xs text-center text-slate-400 relative z-10">
-             Driver: {managerData.dealRiskAssessment.primaryDriver}
+             Driver: {riskAssessment.primaryDriver}
            </div>
         </div>
 
@@ -131,18 +142,18 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerData, repDat
                   <div className="w-4 h-4 rounded-full bg-indigo-600 relative shadow-[0_0_15px_rgba(79,70,229,0.5)] border-2 border-white dark:border-slate-800 cursor-pointer group-hover:scale-125 transition-transform duration-300">
                       <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 w-32 bg-slate-900 text-white text-xs p-2 rounded shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-center pointer-events-none">
                          <div className="font-bold mb-1">Focus Here:</div>
-                         {managerData.coachingPriority.focusArea}
+                         {coachingPriority.focusArea}
                          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 rotate-45"></div>
                       </div>
                   </div>
               </div>
            </div>
            <div className="mt-3 flex justify-between items-center">
-              <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${managerData.coachingPriority.level === 'Immediate' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
-                 {managerData.coachingPriority.level} Priority
+              <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${coachingPriority.level === 'Immediate' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
+                 {coachingPriority.level} Priority
               </span>
               <span className="text-xs font-medium text-slate-600 dark:text-slate-400 truncate max-w-[150px]">
-                 {managerData.coachingPriority.focusArea}
+                 {coachingPriority.focusArea}
               </span>
            </div>
         </div>
@@ -154,10 +165,10 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerData, repDat
            <div className="absolute -left-4 -bottom-4 w-32 h-32 bg-purple-500 rounded-full mix-blend-overlay filter blur-xl opacity-20 animate-pulse delay-700"></div>
 
            <h3 className="text-xs font-bold text-slate-400 uppercase mb-2 relative z-10">Root Cause Analysis</h3>
-           <div className="text-3xl font-bold mb-1 text-indigo-400 relative z-10">{managerData.patternAnalysis.issueType}</div>
+           <div className="text-3xl font-bold mb-1 text-indigo-400 relative z-10">{patternAnalysis.issueType}</div>
            <p className="text-sm text-slate-300 mb-4 opacity-80 relative z-10">Primary Gap Identified</p>
            <div className="bg-white/10 p-3 rounded-lg border border-white/10 text-sm leading-relaxed backdrop-blur-sm relative z-10 hover:bg-white/15 transition-colors">
-             "{managerData.patternAnalysis.rootCause}"
+             "{patternAnalysis.rootCause}"
            </div>
         </div>
       </div>
@@ -165,6 +176,29 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerData, repDat
       {/* 2. Visual Deep Dive */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
          
+         {/* Coaching & Training Plan */}
+         <div className="card-hover bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 relative group animate-fade-in-up delay-300">
+            <h3 className="text-sm font-bold text-slate-500 uppercase mb-4">Coaching & Training Plan</h3>
+            <div className="space-y-4">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase">Training Plan</h4>
+                  <ul className="list-disc list-inside text-sm text-slate-700 dark:text-slate-300">
+                    {coachingPlan.trainingPlan?.map((item, idx) => (
+                      <li key={idx}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                   <h4 className="text-xs font-bold text-slate-400 uppercase">Recommended Sentences</h4>
+                   <ul className="list-disc list-inside text-sm text-slate-700 dark:text-slate-300">
+                     {repData.bestRecommendedSentences?.map((sentence, idx) => (
+                       <li key={idx}>{sentence}</li>
+                     ))}
+                   </ul>
+                </div>
+            </div>
+         </div>
+
          {/* Interactive Skill Radar */}
          <div className="card-hover bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 h-96 relative group animate-fade-in-up delay-300 opacity-0" style={{ animationFillMode: 'forwards' }}>
             <div className="absolute top-6 left-6 z-10">
@@ -234,11 +268,11 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerData, repDat
          <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Transcript Risk Audit</h3>
             <span className="text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full font-bold">
-               {managerData.revenueRiskSignals.length} Alerts Found
+               {riskSignals.length} Alerts Found
             </span>
          </div>
          <div className="divide-y divide-slate-100 dark:divide-slate-700">
-            {managerData.revenueRiskSignals.map((signal, idx) => (
+            {riskSignals.map((signal, idx) => (
                <div 
                   key={idx} 
                   onClick={() => setActiveRisk(activeRisk === idx.toString() ? null : idx.toString())}
@@ -273,6 +307,46 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerData, repDat
             ))}
          </div>
       </div>
+
+      {/* 4. Competitor Intelligence */}
+      {competitorAnalysis && competitorAnalysis.length > 0 && (
+        <div className="card-hover bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden animate-fade-in-up delay-500 opacity-0" style={{ animationFillMode: 'forwards' }}>
+           <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Competitor Intelligence</h3>
+              <span className="text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full font-bold">
+                 {competitorAnalysis.length} Detected
+              </span>
+           </div>
+           <div className="p-6 grid gap-4">
+              {competitorAnalysis.map((comp, idx) => (
+                  <div key={idx} className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-5 border border-slate-200 dark:border-slate-700">
+                      <div className="flex justify-between items-start mb-3">
+                          <h4 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                             <span className="text-xl">🏢</span> {comp.competitor}
+                          </h4>
+                          <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${
+                              comp.effectiveness === 'Effective' ? 'bg-emerald-100 text-emerald-700' :
+                              comp.effectiveness === 'Ineffective' ? 'bg-rose-100 text-rose-700' :
+                              'bg-slate-200 text-slate-600'
+                          }`}>
+                              {comp.effectiveness} Response
+                          </span>
+                      </div>
+                      <div className="space-y-3">
+                          <div>
+                              <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Context</span>
+                              <p className="text-sm text-slate-600 dark:text-slate-300 italic">"{comp.context}"</p>
+                          </div>
+                          <div>
+                              <span className="text-xs font-bold text-indigo-500 uppercase tracking-wide">Rep Response</span>
+                              <p className="text-sm text-slate-700 dark:text-slate-200">{comp.repResponse}</p>
+                          </div>
+                      </div>
+                  </div>
+              ))}
+           </div>
+        </div>
+      )}
 
     </div>
   );

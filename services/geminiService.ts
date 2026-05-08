@@ -3,10 +3,10 @@ import { GoogleGenAI } from "@google/genai";
 import { AnalysisData, Persona, ObjectionTemplate } from "../types";
 
 // Constants
-const CHUNK_SIZE_MB = 10; // Reduced chunk size for better stability
+const CHUNK_SIZE_MB = 8; // Reduced chunk size for better stability APIs
 const BYTES_PER_MB = 1024 * 1024;
 const CHUNK_SIZE = CHUNK_SIZE_MB * BYTES_PER_MB;
-const MAX_CONCURRENT_REQUESTS = 3; // Process up to 3 chunks in parallel
+const MAX_CONCURRENT_REQUESTS = 5; // Process up to 5 chunks in parallel
 
 // Helper to convert Blob to Base64
 const blobToBase64 = (blob: Blob): Promise<string> => {
@@ -135,6 +135,23 @@ Under NO circumstances:
 - Fabricate or assume identity.
 
 ====================================================
+MANAGER VIEW ADDITIONS
+====================================================
+
+COACHING PLAN:
+- Generate a specific, actionable training plan for the sales rep based on the transcript weaknesses.
+- Include drills, roleplay scenarios, and clear KPIs.
+- Add recommended sentences for the sales rep to use in future calls.
+
+COMPETITOR INTELLIGENCE:
+Scan the transcript for ANY mentions of competitors, other vendors, or current solutions the prospect is using.
+For each mention:
+1. Name the Competitor.
+2. Quote the context (what the prospect said or implied).
+3. Summarize the Rep's response.
+4. Rate effectiveness of the response (Effective/Ineffective/Neutral).
+
+====================================================
 REP VIEW ADDITIONS
 ====================================================
 
@@ -160,7 +177,7 @@ Create a structured preparation blueprint:
 2. Top 3 Risks to Correct
 3. 3 Strategic Questions to Ask Prospect
 4. Objection Pre-Handling Strategy
-5. Strong Closing Line to Use
+5. Strong Closing Line to Use: MUST be context-specific, referencing the unique value prop discussed and addressing identified hesitations. Do not use generic closing lines like "I look forward to hearing from you".
 6. Confidence Reset Reminder (Behavioral, not motivational)
 
 ====================================================
@@ -177,11 +194,14 @@ If the objection is NEW or SIGNIFICANTLY different from existing templates:
 If no new objections are found, return an empty array.
 `;
 
-const transcribeChunk = async (chunk: Blob, chunkIndex: number, totalChunks: number): Promise<string> => {
-  if (!process.env.API_KEY) throw new Error("API Key missing");
+const transcribeChunk = async (chunk: Blob, chunkIndex: number, totalChunks: number, fileName: string): Promise<string> => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY missing for audio transcription");
   
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
   const base64Data = await blobToBase64(chunk);
+  
+  console.log(`Sending chunk ${chunkIndex + 1}/${totalChunks} (Size: ${chunk.size}, File: ${fileName})`);
 
   return retryWithBackoff(async () => {
       const response = await ai.models.generateContent({
@@ -197,11 +217,10 @@ const transcribeChunk = async (chunk: Blob, chunkIndex: number, totalChunks: num
                 }
               },
               {
-                text: `TRANSCRIPTION TASK (Chunk ${chunkIndex + 1}/${totalChunks}):
+                text: `TRANSCRIPTION TASK (Chunk ${chunkIndex + 1}/${totalChunks} of file ${fileName}):
                 Transcribe the audio exactly as spoken. 
                 Identify speakers as SALES_REP and PROSPECT. 
                 Include timestamps in [MM:SS] format at the start of each line.
-                If this is a continuation, maintain the timestamp continuity from previous chunks if context allows, otherwise start relative.
                 Format: "[MM:SS] SPEAKER_NAME: [Text]"
                 Do not add markdown formatting, just plain text.`
               }
@@ -218,6 +237,14 @@ const transcribeLargeAudio = async (
     file: File, 
     onProgress: (msg: string, progress: number) => void
 ): Promise<string> => {
+  const MAX_SIZE_FOR_SINGLE_UPLOAD = 25 * 1024 * 1024;
+  
+  if (file.size < MAX_SIZE_FOR_SINGLE_UPLOAD) {
+    console.log(`File is small (${file.size} bytes), uploading as single file.`);
+    onProgress("Transcribing audio...", 35);
+    return await transcribeChunk(file, 0, 1, file.name);
+  }
+
   const totalSize = file.size;
   const totalChunks = Math.ceil(totalSize / CHUNK_SIZE);
   
@@ -228,23 +255,25 @@ const transcribeLargeAudio = async (
   for (let i = 0; i < totalChunks; i++) {
     const start = i * CHUNK_SIZE;
     const end = Math.min(start + CHUNK_SIZE, totalSize);
+    const chunkBlob = file.slice(start, end, file.type);
+    console.log(`Chunk ${i}: Size ${chunkBlob.size} bytes, Type: ${chunkBlob.type}, Filename: ${file.name}`);
     chunks.push({
       index: i,
-      blob: file.slice(start, end, file.type)
+      blob: chunkBlob
     });
   }
 
   let completedChunks = 0;
 
-  // Process chunks in parallel with concurrency limit
+  // Process chunks in parallel with concurrency limit (reduced to 2 for stability)
   const chunkTranscripts = await processInParallel(
     chunks, 
-    MAX_CONCURRENT_REQUESTS, 
+    2, 
     async (chunkData) => {
       const { index, blob } = chunkData;
       
       try {
-        const text = await transcribeChunk(blob, index, totalChunks);
+        const text = await transcribeChunk(blob, index, totalChunks, file.name);
         completedChunks++;
         
         // Calculate progress: Transcription represents 0-70% of the total process
@@ -268,11 +297,12 @@ export const analyzeCall = async (
   objectionTemplates: ObjectionTemplate[],
   onProgress?: (status: string, progress: number) => void
 ): Promise<AnalysisData> => {
-  if (!process.env.API_KEY) {
+  const apiKey = process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
     throw new Error("API Key is missing in environment variables.");
   }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
   let transcriptText = "";
 
   // 1. UPLOAD & TRANSCRIPTION PHASE (0-70%)
@@ -299,10 +329,16 @@ export const analyzeCall = async (
     TRANSCRIPT END.
 
     Generate the 3-View Analysis (Rep, Manager, Executive) as defined in the system instructions.
-    Extract explicit context (Product, Price, Role, Rep Name) where available.
+    
+    STRICT CONTEXT EXTRACTION:
+    1. Product Pitched: Identify the specific product or service being sold.
+    2. Price Point: Extract the exact price or budget mentioned (be precise).
+    3. Latest Designation: Identify the prospect's most current role or title mentioned.
+    4. Rep Name: Extract as per extraction rules.
+
     Also perform Knowledge Base Expansion to identify NEW objections.
     
-    IMPORTANT: Provide the output in strictly defined JSON format.
+    IMPORTANT: Provide the output in strictly defined JSON format. MUST be valid JSON, with all string values properly escaped.
   `;
 
   // Schema Definition
@@ -447,48 +483,20 @@ export const analyzeCall = async (
             properties: {
               drills: { type: "ARRAY", items: { type: "STRING" } },
               roleplay: { type: "STRING" },
-              kpi: { type: "STRING" }
-            }
-          }
-        }
-      },
-      executiveView: {
-        type: "OBJECT",
-        properties: {
-          revenueIntelligence: {
-            type: "OBJECT",
-            properties: {
-              salesEffectivenessScore: { type: "NUMBER" },
-              revenueLeakageRisk: { type: "STRING" },
-              forecastReliability: { type: "STRING" }
+              kpi: { type: "STRING" },
+              trainingPlan: { type: "ARRAY", items: { type: "STRING" } }
             }
           },
-          structuralWeakness: {
-            type: "OBJECT",
-            properties: {
-              diagnosis: { type: "STRING" },
-              impact: { type: "STRING" }
-            }
-          },
-          dealImpact: {
-            type: "OBJECT",
-            properties: {
-              revenueExposure: { type: "STRING" },
-              reasoning: { type: "STRING" }
-            }
-          },
-          organizationalPattern: {
-            type: "OBJECT",
-            properties: {
-              observation: { type: "STRING" },
-              validity: { type: "STRING" }
-            }
-          },
-          executiveAction: {
-            type: "OBJECT",
-            properties: {
-              recommendation: { type: "STRING" },
-              rationale: { type: "STRING" }
+          competitorAnalysis: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                competitor: { type: "STRING" },
+                context: { type: "STRING" },
+                repResponse: { type: "STRING" },
+                effectiveness: { type: "STRING", enum: ["Effective", "Ineffective", "Neutral"] }
+              }
             }
           }
         }
@@ -496,7 +504,7 @@ export const analyzeCall = async (
     }
   };
 
-  const modelId = "gemini-3-pro-preview";
+  const modelId = "gemma-4-31b-it";
 
   try {
     // Intermediate step to show progress is moving for the analysis part
@@ -517,6 +525,7 @@ export const analyzeCall = async (
                 systemInstruction: SYSTEM_INSTRUCTION,
                 responseMimeType: "application/json",
                 responseSchema: responseSchema,
+                maxOutputTokens: 8192,
             },
         });
     }, 3, 5000); // 3 Retries for final analysis, starting at 5s delay
@@ -524,39 +533,64 @@ export const analyzeCall = async (
     if(onProgress) onProgress("Finalizing report...", 100);
 
     const text = response.text;
-    if (!text) throw new Error("No response from Gemini");
+    if (!text) throw new Error("No response from Gemma");
 
-    const parsed = JSON.parse(text);
+    let cleanText = text.trim();
+    const firstBrace = cleanText.indexOf('{');
+    const lastBrace = cleanText.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) {
+        cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+    }
+    
+    const parsed = JSON.parse(cleanText);
 
     // Map new fields to legacy fields for backward compatibility with other components
+    // We use defensive coding to ensure nested objects exist even if LLM returns partial data
+    const mv = parsed.managerView || {};
+    const rv = parsed.repView || {};
+    const perf = rv.performanceSnapshot || {};
+    const skills = rv.skillBreakdown || [];
+    const risk = mv.dealRiskAssessment || {};
+    const patterns = mv.patternAnalysis || {};
+    const coaching = mv.coachingPriority || {};
+
     const mappedData: AnalysisData = {
         ...parsed,
+        transcription: parsed.transcription || [],
         discoveredObjections: parsed.discoveredObjections || [],
+        managerView: {
+            ...mv,
+            competitorAnalysis: mv.competitorAnalysis || []
+        },
+        repView: {
+            ...rv,
+            skillBreakdown: skills
+        },
         scores: {
-            overall: parsed.repView.performanceSnapshot.totalScore,
-            discovery: parsed.repView.skillBreakdown.find((s:any) => s.skill.includes('Discovery'))?.score || 0,
-            objectionHandling: parsed.repView.skillBreakdown.find((s:any) => s.skill.includes('Objection'))?.score || 0,
-            valueArticulation: parsed.repView.skillBreakdown.find((s:any) => s.skill.includes('Value'))?.score || 0,
-            closingReadiness: parsed.repView.skillBreakdown.find((s:any) => s.skill.includes('Closing'))?.score || 0,
-            justification: parsed.repView.performanceSnapshot.summary
+            overall: perf.totalScore || 0,
+            discovery: skills.find((s:any) => s.skill.includes('Discovery'))?.score || 0,
+            objectionHandling: skills.find((s:any) => s.skill.includes('Objection'))?.score || 0,
+            valueArticulation: skills.find((s:any) => s.skill.includes('Value'))?.score || 0,
+            closingReadiness: skills.find((s:any) => s.skill.includes('Closing'))?.score || 0,
+            justification: perf.summary || ""
         },
         dealHealth: {
-            status: parsed.managerView.dealRiskAssessment.riskLevel === 'Low' ? 'HOT' : parsed.managerView.dealRiskAssessment.riskLevel === 'Medium' ? 'WARM' : 'COLD',
-            reason: parsed.managerView.dealRiskAssessment.primaryDriver,
-            probability: parsed.managerView.dealRiskAssessment.probability
+            status: risk.riskLevel === 'Low' ? 'HOT' : risk.riskLevel === 'Medium' ? 'WARM' : 'COLD',
+            reason: risk.primaryDriver || "Insufficient data",
+            probability: risk.probability || 0
         },
         managerSummary: [
-            parsed.managerView.patternAnalysis.rootCause,
-            `Risk: ${parsed.managerView.dealRiskAssessment.primaryDriver}`,
-            `Action: ${parsed.managerView.coachingPriority.focusArea}`
+            patterns.rootCause || "Pattern analysis unavailable",
+            `Risk: ${risk.primaryDriver || 'N/A'}`,
+            `Action: ${coaching.focusArea || 'N/A'}`
         ],
         coaching: {
             callKillers: [],
             winningLines: [],
             right: [],
             wrong: [],
-            rewrite: parsed.repView.callRewrite?.[0]?.better || "No rewrite available",
-            missedQuestion: parsed.managerView.coachingPlan.roleplay
+            rewrite: rv.callRewrite?.[0]?.better || "No rewrite available",
+            missedQuestion: mv.coachingPlan?.roleplay || ""
         },
         prospectReaction: {
             impressed: [],
@@ -573,3 +607,167 @@ export const analyzeCall = async (
     throw error;
   }
 };
+
+export const generateCombinedReview = async (analyses: AnalysisData[]): Promise<AnalysisData> => {
+  const apiKey = process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("API Key missing");
+
+  const ai = new GoogleGenAI({ apiKey });
+  const modelId = process.env.GEMMA_MODEL || "gemma-4-31b-it";
+
+  const payload = analyses.map((a, i) => ({
+    callIndex: i + 1,
+    scores: a.scores,
+    dealHealth: a.dealHealth,
+    extractedRepName: a.context?.extractedRepName,
+    managerView: a.managerView,
+    repView: a.repView
+  }));
+
+  const prompt = `You are a Chief Revenue Officer. I have provided JSON data representing the analysis of ${analyses.length} distinct sales calls.
+  Please analyze this combined data to spot overarching trends, common weaknesses, and an aggregated deal health summary.
+
+  Input Data:
+  ${JSON.stringify(payload, null, 2)}
+
+  Produce your output as a JSON object strictly matching the structure of a single "AnalysisData" object, representing the aggregated insights of all calls combined.
+  Return ONLY the JSON. No markdown backticks.
+
+  Required structure (same as analyzeCall output):
+  {
+      "context": {
+          "purpose": "Combined batch analysis of ${analyses.length} calls",
+          "product": "Various",
+          "price": "Various",
+          "prospectRole": "Various"
+      },
+      "managerView": {
+          "dealRisk": { "riskLevel": "High/Medium/Low", "probability": 50, "primaryDriver": "Aggregated primary driver" },
+          "structuralPatterns": { "rootCause": "...", "trend": "...", "proof": "..." },
+          "coachingPlan": { "focusArea": "...", "roleplay": "..." },
+          "competitorAnalysis": []
+      },
+      "repView": {
+          "performance": { "totalScore": 0, "summary": "Aggregated summary..." },
+          "skillBreakdown": [ { "skill": "Discovery", "score": 0, "gaps": ["..."], "strengths": ["..."] } ],
+          "callRewrite": [ { "original": "-", "better": "...", "reason": "..." } ]
+      }
+  }
+  `;
+
+  return retryWithBackoff(async () => {
+      const response = await ai.models.generateContent({
+        model: modelId,
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          temperature: 0.1,
+          responseMimeType: "application/json",
+        }
+      });
+      
+      const text = response.text;
+      if (!text) throw new Error("No response from AI for combined review");
+
+      let cleanText = text.trim();
+      const firstBrace = cleanText.indexOf('{');
+      const lastBrace = cleanText.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1) {
+          cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+      }
+
+      const parsed = JSON.parse(cleanText);
+      
+      const mv = parsed.managerView || {};
+      const rv = parsed.repView || {};
+      const perf = rv.performance || { totalScore: 0 };
+      const risk = mv.dealRisk || { riskLevel: 'Medium', probability: 0 };
+      const skills = rv.skillBreakdown || [];
+
+      // Map to proper AnalysisData shape
+      return {
+          ...parsed,
+          transcription: [], // No single transcription
+          repView: rv,
+          managerView: mv,
+          scores: {
+             overall: perf.totalScore || 0,
+             discovery: skills.find((s:any) => s.skill.includes('Discovery'))?.score || 0,
+             objectionHandling: skills.find((s:any) => s.skill.includes('Objection'))?.score || 0,
+             valueArticulation: skills.find((s:any) => s.skill.includes('Value'))?.score || 0,
+             closingReadiness: skills.find((s:any) => s.skill.includes('Closing'))?.score || 0,
+             justification: perf.summary || ""
+          },
+          dealHealth: {
+             status: risk.riskLevel === 'Low' ? 'HOT' : risk.riskLevel === 'Medium' ? 'WARM' : 'COLD',
+             reason: risk.primaryDriver || "Insufficient data",
+             probability: risk.probability || 0
+          }
+      };
+  }, 3, 2000);
+};
+
+import { ChatMessage } from '../types';
+
+export const askSalesCoach = async (
+  transcript: import('../types').TranscriptSegment[],
+  chatHistory: ChatMessage[],
+  newMessage: string,
+  analysisData: AnalysisData,
+  personas: Persona[]
+): Promise<string> => {
+  const apiKey = process.env.NVIDIA_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("API Key missing");
+
+  const ai = new GoogleGenAI({ apiKey });
+  const modelId = process.env.GEMMA_MODEL || "gemma-4-31b-it";
+
+  const formattedTranscript = transcript.map(s => `[${s.timestamp}] ${s.speaker}: ${s.text}`).join("\n");
+  
+  const systemInstruction = `You are an elite Sales Coach analyzing a specific sales call transcript.
+You are chatting with the sales rep who took this call. Your answers should be tactical, actionable, and specific to the transcript.
+Be encouraging but direct. Use specific quotes and timestamps from the transcript to ground your advice.
+
+CONTEXT:
+Personas: ${JSON.stringify(personas)}
+Call Score: ${analysisData.repView?.performanceSnapshot?.totalScore || 0}
+Biggest Vulnerability: ${analysisData.repView?.performanceSnapshot?.damagingMistake || 'N/A'}
+
+TRANSCRIPT:
+${formattedTranscript}
+`;
+
+  const contents: any[] = [
+    { role: 'user', parts: [{ text: "Hello! I'm the sales rep. I'd like to ask some questions about this call." }] },
+    { role: 'model', parts: [{ text: "Of course! I'm ready to help you analyze this call. What would you like to know?" }] }
+  ];
+
+  for (const msg of chatHistory) {
+    contents.push({
+      role: msg.role,
+      parts: [{ text: msg.text }]
+    });
+  }
+
+  contents.push({
+    role: 'user',
+    parts: [{ text: newMessage }]
+  });
+
+  try {
+    const response = await retryWithBackoff(async () => {
+      return await ai.models.generateContent({
+        model: modelId,
+        contents: contents,
+        config: {
+          systemInstruction: systemInstruction,
+        }
+      });
+    });
+
+    return response.text || "I'm sorry, I couldn't generate a response.";
+  } catch (error) {
+    console.error("Coach Chat failed", error);
+    throw error;
+  }
+};
+

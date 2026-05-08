@@ -9,6 +9,11 @@ interface RepDashboardProps {
 const RepDashboard: React.FC<RepDashboardProps> = ({ data }) => {
   const [expandedSkill, setExpandedSkill] = useState<number | null>(null);
 
+  // Defensive defaults to prevent crashes if analysis data is partial
+  const d = data || {};
+  const perf = d.performanceSnapshot || { totalScore: 0, summary: '', strongestSkill: '', damagingMistake: '' };
+  const skillBreakdown = d.skillBreakdown || [];
+
   // Helper for score color
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800';
@@ -27,11 +32,11 @@ const RepDashboard: React.FC<RepDashboardProps> = ({ data }) => {
            <div className="relative z-10 w-32 h-32 flex items-center justify-center mb-2">
              <svg className="w-full h-full transform -rotate-90">
                 <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-slate-200 dark:text-slate-700" />
-                <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={351} strokeDashoffset={351} className="text-indigo-600 dark:text-indigo-400 transition-all duration-[1500ms] ease-out-expo animate-circular-progress" style={{ strokeDashoffset: 351 - (data.performanceSnapshot.totalScore / 100) * 351 }} />
+                <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={351} strokeDashoffset={351} className="text-indigo-600 dark:text-indigo-400 transition-all duration-[1500ms] ease-out-expo animate-circular-progress" style={{ strokeDashoffset: 351 - ((perf.totalScore || 0) / 100) * 351 }} />
              </svg>
-             <span className="absolute text-5xl font-black text-slate-900 dark:text-white tracking-tighter animate-scale-in">{data.performanceSnapshot.totalScore}</span>
+             <span className="absolute text-5xl font-black text-slate-900 dark:text-white tracking-tighter animate-scale-in">{perf.totalScore}</span>
            </div>
-           <p className="relative z-10 text-sm font-medium text-slate-600 dark:text-slate-300 italic px-2 animate-fade-in delay-500 opacity-0" style={{ animationFillMode: 'forwards' }}>"{data.performanceSnapshot.summary}"</p>
+           <p className="relative z-10 text-sm font-medium text-slate-600 dark:text-slate-300 italic px-2 animate-fade-in delay-500 opacity-0" style={{ animationFillMode: 'forwards' }}>"{perf.summary}"</p>
         </div>
 
         <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -43,7 +48,7 @@ const RepDashboard: React.FC<RepDashboardProps> = ({ data }) => {
                  </div>
                  <h4 className="font-bold text-emerald-900 dark:text-emerald-300">Superpower</h4>
               </div>
-              <p className="text-xl font-bold text-slate-800 dark:text-slate-100 mt-2">{data.performanceSnapshot.strongestSkill}</p>
+              <p className="text-xl font-bold text-slate-800 dark:text-slate-100 mt-2">{perf.strongestSkill}</p>
            </div>
            
            {/* Damaging Mistake */}
@@ -54,7 +59,7 @@ const RepDashboard: React.FC<RepDashboardProps> = ({ data }) => {
                  </div>
                  <h4 className="font-bold text-rose-900 dark:text-rose-300">Biggest Leak</h4>
               </div>
-              <p className="text-xl font-bold text-slate-800 dark:text-slate-100 mt-2">{data.performanceSnapshot.damagingMistake}</p>
+              <p className="text-xl font-bold text-slate-800 dark:text-slate-100 mt-2">{perf.damagingMistake}</p>
            </div>
         </div>
       </div>
@@ -66,7 +71,7 @@ const RepDashboard: React.FC<RepDashboardProps> = ({ data }) => {
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Click on a skill to reveal detailed feedback.</p>
          </div>
          <div className="divide-y divide-slate-100 dark:divide-slate-700">
-            {data.skillBreakdown.map((skill, idx) => {
+            {skillBreakdown.map((skill, idx) => {
                const isOpen = expandedSkill === idx;
                return (
                   <div 

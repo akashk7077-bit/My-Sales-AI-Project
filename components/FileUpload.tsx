@@ -2,7 +2,7 @@
 import React, { useRef, useState } from 'react';
 
 interface FileUploadProps {
-  onInputSelected: (input: File | string, type: 'audio' | 'text') => void;
+  onInputSelected: (input: File[] | string, type: 'audio' | 'text') => void;
   isLoading: boolean;
 }
 
@@ -26,24 +26,31 @@ const FileUpload: React.FC<FileUploadProps> = ({ onInputSelected, isLoading }) =
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFiles(Array.from(e.dataTransfer.files));
     }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
-    if (e.target.files && e.target.files[0]) {
-      handleFile(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      handleFiles(Array.from(e.target.files));
     }
   };
 
-  const handleFile = (file: File) => {
-    if (file.type.startsWith('audio/') || file.type.startsWith('video/')) {
-      onInputSelected(file, 'audio');
-    } else {
-      alert("Please upload a valid audio or video file.");
+  const handleFiles = (files: File[]) => {
+    const validFiles = files.filter(f => f.type.startsWith('audio/') || f.type.startsWith('video/'));
+    
+    if (validFiles.length === 0) {
+      alert("Please upload valid audio or video files.");
+      return;
     }
+    
+    if (validFiles.length > 7) {
+      alert("You can only upload up to 7 files at a time. The first 7 will be processed.");
+    }
+    
+    onInputSelected(validFiles.slice(0, 7), 'audio');
   };
   
   const handleTextSubmit = () => {
@@ -89,6 +96,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onInputSelected, isLoading }) =
                   type="file"
                   className="hidden"
                   accept="audio/*,video/*"
+                  multiple
                   onChange={handleChange}
                 />
 
@@ -98,8 +106,8 @@ const FileUpload: React.FC<FileUploadProps> = ({ onInputSelected, isLoading }) =
                     </svg>
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Upload Recording</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">Drag & drop or browse (MP3, WAV, M4A)</p>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Upload Recordings</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">Drag & drop or browse up to 7 files (MP3, WAV, M4A)</p>
                 </div>
                 <button
                   onClick={() => {
@@ -107,7 +115,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onInputSelected, isLoading }) =
                   }}
                   className={`mt-4 px-6 py-2.5 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-indigo-500/30 transform active:scale-95 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-sm`}
                 >
-                  Select File
+                  Select Files
                 </button>
                 <p className="text-xs text-slate-400 mt-4 font-semibold max-w-xs mx-auto tracking-wide">
                    <span className="text-indigo-500">SECURE</span> • ENCRYPTED • <span className="text-indigo-500">PRIVATE</span>

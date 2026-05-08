@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import Logo from './Logo';
 
 interface WelcomeScreenProps {
   onComplete: () => void;
@@ -53,11 +54,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onComplete }) => {
       <div className="relative z-10 flex flex-col items-center">
         {/* Logo Animation: Scaling and Breathing */}
         <div className="w-32 h-32 bg-slate-900/90 backdrop-blur-xl rounded-3xl flex items-center justify-center shadow-2xl mb-12 animate-logo-scale border border-white/10 ring-1 ring-white/20">
-          <svg className="w-16 h-16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4 19C8 19 10 15 12 12C14 9 16 5 21 5" stroke="#818CF8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="4" cy="19" r="1.5" fill="#6366F1" />
-            <circle cx="21" cy="5" r="2.5" fill="white" />
-          </svg>
+          <Logo className="w-20 h-20" />
         </div>
 
         {/* Text Fade In with Slide Up */}

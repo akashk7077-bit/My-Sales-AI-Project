@@ -8,6 +8,9 @@ interface RecommendationsViewProps {
 }
 
 const RecommendationsView: React.FC<RecommendationsViewProps> = ({ data, repName }) => {
+  const managerSummary = data?.managerSummary || [];
+  const coaching = data?.coaching || { rewrite: '', missedQuestion: '', callKillers: [], wrong: [] };
+
   return (
     <div className="w-full max-w-5xl mx-auto space-y-8 pb-20">
       
@@ -30,9 +33,9 @@ const RecommendationsView: React.FC<RecommendationsViewProps> = ({ data, repName
            </div>
            <div className="grid md:grid-cols-2 gap-6">
               <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-lg border border-slate-100 dark:border-slate-700 card-hover">
-                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Executive Summary</h4>
+                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Manager Summary</h4>
                  <ul className="space-y-3">
-                   {data.managerSummary.slice(0, 4).map((point, i) => (
+                   {managerSummary.slice(0, 4).map((point, i) => (
                      <li key={i} className="flex gap-3 text-sm text-slate-700 dark:text-slate-300">
                        <span className="text-slate-400 font-bold">•</span>
                        <span className="leading-relaxed">{point}</span>
@@ -43,7 +46,7 @@ const RecommendationsView: React.FC<RecommendationsViewProps> = ({ data, repName
               <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-lg border border-slate-100 dark:border-slate-700 card-hover">
                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Revenue Risks</h4>
                  <ul className="space-y-3">
-                   {data.managerSummary.slice(4).map((point, i) => (
+                   {managerSummary.slice(4).map((point, i) => (
                      <li key={i} className="flex gap-3 text-sm text-slate-700 dark:text-slate-300">
                        <span className="text-rose-400 font-bold">⚠️</span>
                        <span className="leading-relaxed">{point}</span>
@@ -64,8 +67,8 @@ const RecommendationsView: React.FC<RecommendationsViewProps> = ({ data, repName
            </div>
            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Instead of the weak response used in the call, here is a revenue-generating alternative:</p>
            <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-xl border border-indigo-100 dark:border-indigo-900/50 italic text-indigo-900 dark:text-indigo-200 font-medium text-lg leading-relaxed shadow-sm relative overflow-hidden group">
-             <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500 transform transition-transform group-hover:scale-y-110"></div>
-             "{data.coaching.rewrite}"
+              <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500 transform transition-transform group-hover:scale-y-110"></div>
+              "{coaching.rewrite}"
            </div>
         </div>
 
@@ -79,8 +82,8 @@ const RecommendationsView: React.FC<RecommendationsViewProps> = ({ data, repName
            </div>
            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">The one question that would have cracked the deal open:</p>
            <div className="bg-amber-50 dark:bg-amber-900/20 p-6 rounded-xl border border-amber-100 dark:border-amber-900/50 text-amber-900 dark:text-amber-200 font-bold text-lg leading-relaxed shadow-sm relative overflow-hidden group">
-             <div className="absolute top-0 left-0 w-1 h-full bg-amber-500 transform transition-transform group-hover:scale-y-110"></div>
-             "{data.coaching.missedQuestion}"
+              <div className="absolute top-0 left-0 w-1 h-full bg-amber-500 transform transition-transform group-hover:scale-y-110"></div>
+              "{coaching.missedQuestion}"
            </div>
         </div>
 
@@ -94,9 +97,9 @@ const RecommendationsView: React.FC<RecommendationsViewProps> = ({ data, repName
                 <span className="bg-white/20 text-white text-xs px-2 py-1 rounded font-medium backdrop-blur-sm">Critical Issues</span>
             </div>
             
-            {data.coaching.callKillers && data.coaching.callKillers.length > 0 ? (
+            {coaching.callKillers && coaching.callKillers.length > 0 ? (
                 <div className="space-y-4">
-                  {data.coaching.callKillers.map((killer, i) => (
+                  {coaching.callKillers.map((killer: any, i: number) => (
                     <div key={i} className="flex flex-col md:flex-row gap-4 p-4 border border-rose-100 dark:border-rose-900/50 rounded-lg hover:bg-rose-50/30 dark:hover:bg-rose-900/20 transition-all duration-300 card-hover">
                        <div className="md:w-1/3">
                           <span className="text-xs font-bold text-rose-500 uppercase tracking-wide">The Mistake</span>
@@ -123,7 +126,7 @@ const RecommendationsView: React.FC<RecommendationsViewProps> = ({ data, repName
          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:col-span-2 transition-colors duration-500 animate-fade-in-up delay-500">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Immediate Action Plan</h3>
             <div className="grid md:grid-cols-2 gap-4">
-               {data.coaching.wrong.map((item, i) => (
+               {coaching.wrong && coaching.wrong.map((item: string, i: number) => (
                    <div key={i} className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-lg card-hover">
                        <div className="bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold">
                            {i + 1}

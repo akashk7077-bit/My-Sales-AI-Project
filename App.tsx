@@ -9,7 +9,9 @@ import RecommendationsView from './components/RecommendationsView';
 import RoleSelection from './components/RoleSelection';
 import AIAnalysisLoader from './components/AIAnalysisLoader';
 import WelcomeScreen from './components/WelcomeScreen';
-import { analyzeCall } from './services/geminiService';
+import Logo from './components/Logo';
+import { AIUsageIndicator } from './components/AIUsageIndicator';
+import { analyzeCall, generateCombinedReview } from './services/geminiService';
 import { AnalysisData, Persona, ObjectionTemplate, CallRecord, UserRole, UserProfile } from './types';
 
 // Default Data
@@ -72,8 +74,22 @@ function App() {
   const [objections, setObjections] = useState<ObjectionTemplate[]>(DEFAULT_OBJECTIONS);
 
   // Data State
-  const [callHistory, setCallHistory] = useState<CallRecord[]>([]);
+  const [callHistory, setCallHistory] = useState<CallRecord[]>(() => {
+      const saved = localStorage.getItem('salesAuditorHistory');
+      if (!saved) return [];
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse call history from localStorage", e);
+        return [];
+      }
+  });
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+
+  // Persistence Effect
+  useEffect(() => {
+      localStorage.setItem('salesAuditorHistory', JSON.stringify(callHistory.slice(0, 5)));
+  }, [callHistory]);
 
   // Analysis State
   const [isLoading, setIsLoading] = useState(false);
@@ -137,7 +153,6 @@ function App() {
         setSelectedRole(null);
         setAuthStep('ROLE');
         setActiveView('upload');
-        setCallHistory([]); // Clear history for security on logout
     }
   };
 
@@ -160,6 +175,11 @@ function App() {
         }
       );
       
+      // Update usage
+      const today = new Date().toISOString().split('T')[0];
+      const count = localStorage.getItem(`transcriptions_${today}`) || 0;
+      localStorage.setItem(`transcriptions_${today}`, (parseInt(count.toString()) + 1).toString());
+      
       setLoadingStatus('Analysis Complete!');
       setLoadingProgress(100);
       
@@ -179,7 +199,7 @@ function App() {
           audioUrl: audioUrl 
       };
 
-      setCallHistory(prev => [newRecord, ...prev]);
+      setCallHistory(prev => [newRecord, ...prev].slice(0, 5));
       
       // AUTO-LEARN: Add discovered objections to global state
       if (data.discoveredObjections && data.discoveredObjections.length > 0) {
@@ -205,12 +225,116 @@ function App() {
     }
   };
 
-  const handleInputSelected = (input: File | string, type: 'audio' | 'text') => {
-    if (type === 'audio' && input instanceof File) {
-        const audioUrl = URL.createObjectURL(input);
-        processAnalysis(input, "Sales Representative", input.name, audioUrl);
+  const handleInputSelected = async (input: File[] | string, type: 'audio' | 'text') => {
+    if (type === 'audio' && Array.isArray(input)) {
+        await processMultipleAnalyses(input);
     } else if (type === 'text' && typeof input === 'string') {
-        processAnalysis(input, "Sales Representative", "Pasted Transcript", undefined);
+        await processAnalysis(input, "Sales Representative", "Pasted Transcript", undefined);
+    }
+  };
+
+  const processMultipleAnalyses = async (files: File[]) => {
+    setIsLoading(true);
+    setError(null);
+    const newRecords: CallRecord[] = [];
+    
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setLoadingStatus(`Processing file ${i + 1} of ${files.length}: ${file.name}...`);
+        setLoadingProgress(0);
+        
+        const audioUrl = URL.createObjectURL(file);
+        const data = await analyzeCall(
+          file, 
+          personas, 
+          objections, 
+          (status, progress) => {
+               setLoadingStatus(`File ${i + 1}/${files.length} - ${status}`);
+               setLoadingProgress(progress);
+          }
+        );
+        
+        // Update usage
+        const today = new Date().toISOString().split('T')[0];
+        const count = localStorage.getItem(`transcriptions_${today}`) || 0;
+        localStorage.setItem(`transcriptions_${today}`, (parseInt(count.toString()) + 1).toString());
+        
+        const detectedName = data.context?.extractedRepName;
+        const finalRepName = (detectedName && detectedName !== "Sales Representative") 
+          ? detectedName 
+          : "Sales Representative";
+
+        const newRecord: CallRecord = {
+            id: Date.now().toString() + Math.random().toString().slice(2, 5),
+            date: new Date().toLocaleDateString(),
+            repName: finalRepName,
+            fileName: file.name,
+            analysis: data,
+            audioUrl: audioUrl 
+        };
+        
+        newRecords.push(newRecord);
+
+        // AUTO-LEARN: Add discovered objections to global state
+        if (data.discoveredObjections && data.discoveredObjections.length > 0) {
+           const newObjections = data.discoveredObjections.map(obj => ({
+              ...obj,
+              id: Date.now().toString() + Math.random().toString().slice(2, 5)
+           }));
+           
+           setObjections(prev => {
+               const combined = [...prev, ...newObjections];
+               // Deduplicate if needed, or just add
+               return combined;
+           });
+           setNotification(`${newObjections.length} new objections auto-added to Knowledge Base!`);
+        }
+      }
+      
+      let combinedAnalysisData = null;
+      let finalRecords = [...newRecords];
+      
+      // If multiple files, do a combined analysis
+      if (files.length > 1) {
+          setLoadingStatus(`Generating combined review for ${files.length} calls...`);
+          setLoadingProgress(50);
+          
+          try {
+             // Pass the collected analysis data to generate a combined review
+             combinedAnalysisData = await generateCombinedReview(newRecords.map(r => r.analysis));
+             
+             const combinedRecord: CallRecord = {
+                 id: Date.now().toString() + "-combined",
+                 date: new Date().toLocaleDateString(),
+                 repName: "Combined Team Review",
+                 fileName: `${files.length} Calls Batch Analysis`,
+                 analysis: combinedAnalysisData,
+             };
+             finalRecords = [combinedRecord, ...finalRecords];
+          } catch (combErr) {
+             console.error("Combined analysis failed", combErr);
+             setNotification("Individual analyses complete, but combined review failed.");
+          }
+      }
+      
+      setCallHistory(prev => {
+          const updated = [...finalRecords, ...prev];
+          return updated.slice(0, 50); // Keep more records since batch uploads
+      });
+      setSelectedRecordId(finalRecords[0].id);
+      setActiveView('report');
+      setLoadingStatus('Analysis Complete!');
+      setLoadingProgress(100);
+      await new Promise(resolve => setTimeout(resolve, 800)); 
+      
+    } catch (err) {
+      console.error("Batch processing error", err);
+      setError("Failed to analyze one or more calls. Please ensure your API Key is valid and try again.");
+    } finally {
+      setIsLoading(false);
+      setLoadingStatus('Processing...');
+      setLoadingProgress(0);
     }
   };
 
@@ -279,11 +403,7 @@ function App() {
             <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setActiveView('upload')}>
               {/* Premium Brand Mark */}
               <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20 border border-slate-700 group-hover:scale-105 transition-all duration-300 animate-logo-breathe active:scale-95">
-                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M4 19C8 19 10 15 12 12C14 9 16 5 21 5" stroke="#818CF8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  <circle cx="4" cy="19" r="1.5" fill="#6366F1" />
-                  <circle cx="21" cy="5" r="2.5" fill="white" />
-                </svg>
+                <Logo className="w-6 h-6" />
               </div>
               
               <div className="flex flex-col">
@@ -393,7 +513,7 @@ function App() {
              <div className="text-center max-w-4xl space-y-6 px-4">
                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-2 animate-fade-in">
                   <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-                  {userProfile?.role === 'REP' ? 'Rep Coaching Mode' : userProfile?.role === 'MANAGER' ? 'Manager Oversight Mode' : 'Executive Intelligence Mode'}
+                  {userProfile?.role === 'REP' ? 'Rep Coaching Mode' : 'Manager Oversight Mode'}
                </div>
                <h1 className="text-5xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
                  AI-Powered Sales Coaching <br />
@@ -500,8 +620,9 @@ function App() {
       <footer className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 py-12 mt-auto relative z-20 transition-colors duration-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <p className="font-extrabold text-lg text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">
-            &copy; 2026 Akash Krishna All rights reserved
+            &copy; 2025–2026 Akash Krishna. All rights reserved.
           </p>
+          <AIUsageIndicator />
           <div className="flex justify-center items-center gap-4 opacity-70 mt-3">
             <span className="h-px w-12 bg-gradient-to-r from-transparent to-slate-400 dark:to-slate-600"></span>
             <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-[0.2em]">

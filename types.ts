@@ -21,9 +21,12 @@ export interface ObjectionTemplate {
   response: string;
 }
 
-// --- ACCESS CONTROL TYPES ---
+export interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+}
 
-export type UserRole = 'REP' | 'MANAGER' | 'EXECUTIVE';
+export type UserRole = 'REP' | 'MANAGER';
 
 export interface UserProfile {
   name: string;
@@ -96,7 +99,14 @@ export interface ManagerView {
     drills: string[];
     roleplay: string;
     kpi: string;
+    trainingPlan: string[];
   };
+  competitorAnalysis?: {
+    competitor: string;
+    context: string;
+    repResponse: string;
+    effectiveness: 'Effective' | 'Ineffective' | 'Neutral';
+  }[];
 }
 
 export interface ExecutiveView {
@@ -156,10 +166,9 @@ export interface AnalysisData {
     matchedPersona?: string;
     extractedRepName?: string;
   };
-  // The 3 Core Views
+  // The Core Views
   repView: RepView;
   managerView: ManagerView;
-  executiveView: ExecutiveView;
   
   // Auto-Learning
   discoveredObjections?: ObjectionTemplate[];

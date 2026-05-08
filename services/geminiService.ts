@@ -94,114 +94,63 @@ CORE LANGUAGE RULES (NON-NEGOTIABLE):
 2. NO CORPORATE JARGON.
    - Bad: "Revenue leakage due to insufficient discovery."
    - Good: "Deal at risk because customer needs weren't confirmed."
-   - Bad: "Lack of value articulation."
-   - Good: "Rep didn't explain why the product is worth the price."
 3. Be direct, brutal, and concise.
 
 PRIMARY OBJECTIVE:
-Generate three different analysis views from the SAME transcript:
+Generate detailed analysis views from the SAME transcript:
 1. REP VIEW (Performance & Skill Improvement)
 2. MANAGER VIEW (Coaching & Risk)
-3. SENIOR MANAGEMENT VIEW (Strategic Revenue)
-
-Each view must interpret the same data through a different business lens.
 
 GLOBAL RULES:
 - Every claim must reference transcript evidence.
-- If evidence is weak → state uncertainty clearly.
-- Do NOT estimate revenue impact unless logic is explainable.
 - Scores are 0-100 (50 is average, <30 is fail, >90 is elite).
+- MANDATORY: YOU MUST FILL EVERY ARRAY AND OBJECT IN THE JSON SCHEMA. NEVER LEAVE 'missedOpportunities', 'callRewrite', 'revenueRiskSignals', or 'competitorAnalysis' EMPTY. If a competitor is missing, treat the "Status Quo" or "Do Nothing" as the competitor. If no mistakes are obvious, nitpick to find at least two minor missed opportunities and rewrites.
+
+====================================================
+MANAGER VIEW DETAILS
+====================================================
+- dealRiskAssessment: Probability (0-100), risk level (Low, Medium, High), and primary driver.
+- coachingPriority: Assess what needs immediate, short-term, or long-term coaching.
+- patternAnalysis: Root cause of the issues identified (Skill, Mindset, Process).
+- revenueRiskSignals: Extract AT LEAST 2 quotes where the prospect hesitated or risk appeared, and explain the impact.
+- coachingPlan: Tactical drills, roleplay scenario, KPI, and training plan.
+- competitorAnalysis: ALWAYS return at least 1 item. Identify the competitor or current solution ("Status Quo"). Quote context, summarize rep's response, and rate effectiveness.
+
+====================================================
+REP VIEW DETAILS
+====================================================
+- performanceSnapshot: Overall score, summary, strongest skill, and damaging mistake.
+- skillBreakdown: Grade all core skills (Discovery, Objection Handling, Value Articulation, Closing).
+- missedOpportunities: Output AT LEAST 2 missed buying signals or places the rep could have dug deeper.
+- callRewrite: Output AT LEAST 2 tactical rewrites (what the rep said vs what they should have said).
+- bestRecommendedSentences: Generate EXACTLY 5 practical, high-impact sentences the rep should use next time.
+- nextCallPreparationPlan: 
+   1. Objective
+   2. Top Risks
+   3. Strategic Questions
+   4. Objection Strategy
+   5. Strong Closing Line 
+   6. Confidence Reset
 
 ====================================================
 NAME EXTRACTION RULES (CRITICAL)
 ====================================================
-
-Step 1:
-Scan transcript for explicit self-introduction such as:
-- “Hi, this is [Name]”
-- “This is [Name] from…”
-- “My name is [Name]”
-- "Speaking" (after being addressed by name)
-
-Step 2:
-If name is explicitly stated → use that exact name (First Name Last Name if available, or just First Name).
-
-Step 3:
-If name is NOT clearly stated:
-Use label: "Sales Representative"
-
-Under NO circumstances:
-- Guess the rep’s name based on file name or metadata.
-- Fabricate or assume identity.
-
-====================================================
-MANAGER VIEW ADDITIONS
-====================================================
-
-COACHING PLAN:
-- Generate a specific, actionable training plan for the sales rep based on the transcript weaknesses.
-- Include drills, roleplay scenarios, and clear KPIs.
-- Add recommended sentences for the sales rep to use in future calls.
-
-COMPETITOR INTELLIGENCE:
-Scan the transcript for ANY mentions of competitors, other vendors, or current solutions the prospect is using.
-For each mention:
-1. Name the Competitor.
-2. Quote the context (what the prospect said or implied).
-3. Summarize the Rep's response.
-4. Rate effectiveness of the response (Effective/Ineffective/Neutral).
-
-====================================================
-REP VIEW ADDITIONS
-====================================================
-
-SECTION F — Best Recommended Sentences (For Immediate Use)
-Generate 10 high-impact sales-intelligent sentences tailored to:
-- The specific objections raised
-- The weaknesses identified
-- The call context
-- The prospect persona (if known)
-
-Rules:
-- Sentences must be practical and usable verbatim.
-- Avoid generic phrases.
-- Do not invent objections not present.
-- If transcript lacks clarity → base sentences on documented weaknesses only.
-- If insufficient context → state: “Recommendations limited due to insufficient call depth.”
-
-Format: Array of strings.
-
-SECTION G — Next Call Preparation Plan
-Create a structured preparation blueprint:
-1. Objective for Next Call (1 sentence)
-2. Top 3 Risks to Correct
-3. 3 Strategic Questions to Ask Prospect
-4. Objection Pre-Handling Strategy
-5. Strong Closing Line to Use: MUST be context-specific, referencing the unique value prop discussed and addressing identified hesitations. Do not use generic closing lines like "I look forward to hearing from you".
-6. Confidence Reset Reminder (Behavioral, not motivational)
+Scan transcript for explicit self-introduction. If clear, use it. If NOT, use "Sales Representative". Do not guess based on metadata. Pay extra attention to name spelling, especially Indian names (e.g. Varshika not Vrshika).
 
 ====================================================
 KNOWLEDGE BASE EXPANSION (AUTO-LEARNING)
 ====================================================
-
-Identify any unique objections raised by the prospect in this call.
-Compare them against the "Objection Library" provided in the context.
-If the objection is NEW or SIGNIFICANTLY different from existing templates:
-1. Categorize it.
-2. Extract the exact trigger phrase (what the prospect said).
-3. Write an IDEAL response script (what the rep SHOULD have said to win).
-
-If no new objections are found, return an empty array.
+Identify unique objections raised by the prospect. Return an array of objects (category, trigger, response). If none, invent the most likely unspoken objection based on context.
 `;
 
 const transcribeChunk = async (chunk: Blob, chunkIndex: number, totalChunks: number, fileName: string): Promise<string> => {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY missing for audio transcription");
+  if (!apiKey) throw new Error("API Key missing for audio transcription");
   
   const ai = new GoogleGenAI({ apiKey });
   const base64Data = await blobToBase64(chunk);
   
-  console.log(`Sending chunk ${chunkIndex + 1}/${totalChunks} (Size: ${chunk.size}, File: ${fileName})`);
+  console.log(`Sending chunk ${chunkIndex + 1}/${totalChunks} (Size: ${chunk.size}, File: ${fileName}) to model gemini-2.5-flash`);
 
   return retryWithBackoff(async () => {
       const response = await ai.models.generateContent({
@@ -222,7 +171,8 @@ const transcribeChunk = async (chunk: Blob, chunkIndex: number, totalChunks: num
                 Identify speakers as SALES_REP and PROSPECT. 
                 Include timestamps in [MM:SS] format at the start of each line.
                 Format: "[MM:SS] SPEAKER_NAME: [Text]"
-                Do not add markdown formatting, just plain text.`
+                Do not add markdown formatting, just plain text.
+                Pay close attention to name pronunciation and spelling (e.g. Varshika instead of Vrshika).`
               }
             ]
           }
@@ -564,7 +514,18 @@ export const analyzeCall = async (
         },
         repView: {
             ...rv,
-            skillBreakdown: skills
+            skillBreakdown: skills,
+            missedOpportunities: rv.missedOpportunities || [],
+            callRewrite: rv.callRewrite || [],
+            bestRecommendedSentences: rv.bestRecommendedSentences || [],
+            nextCallPreparationPlan: rv.nextCallPreparationPlan || {
+                objective: "Not specified",
+                topRisks: [],
+                strategicQuestions: [],
+                objectionStrategy: "Not specified",
+                closingLine: "Not specified",
+                confidenceReset: "Not specified"
+            }
         },
         scores: {
             overall: perf.totalScore || 0,

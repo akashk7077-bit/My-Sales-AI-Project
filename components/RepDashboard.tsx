@@ -71,7 +71,7 @@ const RepDashboard: React.FC<RepDashboardProps> = ({ data }) => {
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Click on a skill to reveal detailed feedback.</p>
          </div>
          <div className="divide-y divide-slate-100 dark:divide-slate-700">
-            {skillBreakdown.map((skill, idx) => {
+             {skillBreakdown?.map((skill, idx) => {
                const isOpen = expandedSkill === idx;
                return (
                   <div 
@@ -151,9 +151,9 @@ const RepDashboard: React.FC<RepDashboardProps> = ({ data }) => {
       <div className="grid md:grid-cols-2 gap-6">
           <div className="card-hover bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 animate-fade-in-up delay-400 opacity-0" style={{ animationFillMode: 'forwards' }}>
              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Missed Buying Signals</h3>
-             {data.missedOpportunities.length > 0 ? (
+             {data.missedOpportunities?.length > 0 ? (
                 <ul className="space-y-4">
-                   {data.missedOpportunities.map((opp, idx) => (
+                   {data.missedOpportunities?.map((opp, idx) => (
                       <li key={idx} className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border border-amber-100 dark:border-amber-800/30 hover:border-amber-300 transition-colors animate-fade-in-up" style={{ animationDelay: `${idx * 150}ms`, animationFillMode: 'forwards' }}>
                          <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase bg-amber-100 dark:bg-amber-900/50 px-2 py-1 rounded">{opp.signal}</span>
                          <p className="text-slate-800 dark:text-slate-200 italic my-2 font-medium">"{opp.quote}"</p>
@@ -166,9 +166,9 @@ const RepDashboard: React.FC<RepDashboardProps> = ({ data }) => {
 
           <div className="card-hover bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 animate-fade-in-up delay-400 opacity-0" style={{ animationFillMode: 'forwards' }}>
              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Tactical Rewrites</h3>
-             {data.callRewrite.length > 0 ? (
+             {data.callRewrite?.length > 0 ? (
                  <div className="space-y-6">
-                    {data.callRewrite.map((rw, idx) => (
+                    {data.callRewrite?.map((rw, idx) => (
                        <div key={idx} className="relative pl-6 border-l-2 border-slate-200 dark:border-slate-700 animate-fade-in-up" style={{ animationDelay: `${idx * 150}ms`, animationFillMode: 'forwards' }}>
                           <div className="mb-3">
                              <span className="text-xs font-bold text-rose-500 uppercase">You Said</span>
@@ -186,14 +186,14 @@ const RepDashboard: React.FC<RepDashboardProps> = ({ data }) => {
        </div>
 
       {/* 4. Section F: Best Recommended Sentences */}
-      {data.bestRecommendedSentences && data.bestRecommendedSentences.length > 0 && (
+      {data.bestRecommendedSentences && data.bestRecommendedSentences?.length > 0 && (
          <div className="card-hover bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl shadow-lg p-8 text-white animate-fade-in-up delay-500 opacity-0" style={{ animationFillMode: 'forwards' }}>
             <h3 className="text-2xl font-bold mb-6 flex items-center gap-2">
                <svg className="w-6 h-6 text-indigo-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
                Magic Sentences for Next Time
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               {data.bestRecommendedSentences.map((sentence, idx) => (
+               {data.bestRecommendedSentences?.map((sentence, idx) => (
                   <div key={idx} className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/10 hover:bg-white/20 transition-all duration-300 hover:translate-x-1 animate-fade-in-up" style={{ animationDelay: `${idx * 100}ms`, animationFillMode: 'forwards' }}>
                      <span className="text-indigo-200 font-bold mr-2 text-lg">{idx + 1}.</span>
                      <span className="font-medium text-white">"{sentence}"</span>
@@ -233,7 +233,7 @@ const RepDashboard: React.FC<RepDashboardProps> = ({ data }) => {
                         Risks to Avoid
                      </h4>
                      <ul className="space-y-2">
-                        {data.nextCallPreparationPlan.topRisks.map((risk, i) => (
+                        {data.nextCallPreparationPlan.topRisks?.map((risk, i) => (
                            <li key={i} className="text-sm text-rose-900 dark:text-rose-200 flex gap-2">
                               <span>•</span> {risk}
                            </li>
@@ -247,7 +247,7 @@ const RepDashboard: React.FC<RepDashboardProps> = ({ data }) => {
                         Strategic Questions
                      </h4>
                      <ul className="space-y-2">
-                        {data.nextCallPreparationPlan.strategicQuestions.map((q, i) => (
+                        {data.nextCallPreparationPlan.strategicQuestions?.map((q, i) => (
                            <li key={i} className="text-sm text-emerald-900 dark:text-emerald-200 italic">
                               "{q}"
                            </li>
